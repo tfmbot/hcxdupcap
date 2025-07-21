@@ -3,6 +3,8 @@
 **hcxdupcap** is a Python-based, all-in-one tool that automates WPA/WPA2/PMKID capture and hash extraction. It combines the functionality of [`hcxdumptool`](https://github.com/ZerBea/hcxdumptool) and [`hcxpcapngtool`](https://github.com/ZerBea/hcxtools) into a single, streamlined workflow.
 
 ---
+# Just run `sudo python3 hcxdupcap.py -i <your_interface>` 
+---
 ## 🧰 What You Need
 
 Before running `hcxdupcap`, ensure you meet the following prerequisites:
@@ -19,17 +21,6 @@ If this doesnt work then here are the tools
   - [`hcxpcapngtool`](https://github.com/ZerBea/hcxtools)
 
 If these tools are not installed, the script will attempt to install them:
----
-## ✨ Features
-
-- 📡 Capture WPA/PMKID handshakes using `hcxdumptool`
-- 🔍 Auto-process `.pcapng` using `hcxpcapngtool` in real-time
-- 💾 Outputs:
-  - `hash.hc22000`: Raw WPA/PMKID hashes (Hashcat-ready format)
-  - `SsidHash.txt`: Annotated SSID-to-hash mapping
-- ⚙ Automatic interface validation and tool installation
-- 🧪 Built for red teamers, pentesters, and Wi-Fi security researchers
-
 ---
 
 ## 📦 Requirements
