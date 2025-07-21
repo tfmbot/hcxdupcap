@@ -157,7 +157,11 @@ if __name__ == "__main__":
     parser.add_argument('-w', '--write', type=str, metavar='name.pcapng', default='capture.pcapng', help="Optional: Output file name (default: capture.pcapng)")
     args = parser.parse_args()
     check_sudo()
-    subprocess.run(['sudo','apt','install',])
+    with open('requirements.txt') as f:
+        packages = f.read().split()
+
+    subprocess.run(['sudo', 'apt', 'install', '-y', *packages], check=True)
+
     file_name = args.write
     
     if not file_name.endswith('.pcapng'):
