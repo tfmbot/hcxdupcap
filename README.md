@@ -32,3 +32,4 @@
 ```bash
 git clone https://github.com/yourusername/hcxcombo.git
 cd hcxcombo
+sudo python3 hcxcombo.py -i <your_interface>
