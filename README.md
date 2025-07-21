@@ -12,7 +12,7 @@ Before running `hcxdupcap`, ensure you meet the following prerequisites:
 - Python 3.x
 - Install the tools using apt:
   - sudo apt install hcxdumptool hcxtools -y
-If this doesnt work then here are the tools
+-If this doesnt work then here are the tools
 - Tools to clone:
   - [`hcxdumptool`](https://github.com/ZerBea/hcxdumptool)
   - [`hcxpcapngtool`](https://github.com/ZerBea/hcxtools)
