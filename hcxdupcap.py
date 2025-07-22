@@ -88,12 +88,12 @@ def monitor_file(file_name, output_file, hash_ssid_file):
     observer.schedule(event_handler, path=path_to_watch, recursive=False)
     observer.start()
     start_time = time.time()
-    timeout=15
-    time.sleep(5)  # Allow some time for the observer to start
+    timeout=25
     while not os.path.exists(file_name):
         if time.time() - start_time > timeout:
             print("Timeout reached while waiting for the file to be created.")
             print("Make sure you have used correct \033[1;31minterface\033[0m")
+            print("Use \033[1;31m'iwconfig' or 'ip link'\033[0m to check available interfaces.")
             sys.exit(1)
         time.sleep(.3)
     print(f"Monitoring \033[1;34m{file_name}\033[0m for WPA handshakes...")
@@ -121,11 +121,13 @@ def check_interface(interface):
     result = subprocess.run(['ip', 'link', 'show', interface], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if result.returncode != 0:
         print(f"Error: Interface \033[1;31m'{interface}'\033[0m not found. Please ensure it exists and is enabled.")
+        print("You can check available interfaces with: \033[1;31m'iwconfig'\033[0m or \033[1;31m'ip link'\033[0m")
         sys.exit(1)
 def check_tools():
     tools = {
         "hcxdumptool": "hcxdumptool",
-        "hcxpcapngtool": "hcxtools"
+        "hcxpcapngtool": "hcxtools",
+        "hashcat": "hashcat"
     }
     missing = [tool for tool in tools if shutil.which(tool) is None]
     if not missing:
@@ -150,31 +152,117 @@ def check_tools():
     except subprocess.CalledProcessError as e:
         print(f"\nError during installation: {e}")
         sys.exit(1)
+def find_rockyou(start_path="/"):
+    for root, dirs, files in os.walk(start_path):
+        if "rockyou.txt" in files:
+            full_path = os.path.join(root, "rockyou.txt")
+            print(f"Found: {full_path}")
+            return full_path
+        elif "rockyou.txt.gz" in files:
+            full_path_gz = os.path.join(root, "rockyou.txt.gz")
+            print(f"Found compressed: {full_path_gz} - Unzipping it now...")
+            subprocess.run(["gunzip", "-f", full_path_gz], check=True)
+            full_path = full_path_gz.replace('.gz', '')
+            return full_path_gz
+    print(f"rockyou.txt not found in {start_path}.")
+    return None
+def using_hashcat(result):
+    print("Cracking hashes with rockyou.txt ...")
+    try:
+        subprocess.run(['hashcat', '-m', '22000', 'hash.hc22000','-a','0', result,'--outfile','passwordcracked.txt'], check=True)
+        print("\n\nCracking completed. Check passwordcracked.txt for results.")
+        print("If passwordcracked.txt was not found, try using a different wordlist.")
+        print("Use 'hashcat --help' for more options.")
+        print("\033[1;31mIf hashcat stopped faster than expected, it may be due to hashes already been found on last run.\033[0m")
+        if os.path.isfile(os.path.expanduser('~/.local/share/hashcat/hashcat.potfile')):
+            print("You can find your already found passwords in \033[1;31m~/.local/share/hashcat/\033[0m folder.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during hashcat execution: {e}")
+        sys.exit(1)
 if __name__ == "__main__":
-    
     parser = argparse.ArgumentParser(description="Capture WPA handshakes with hcxdumptool and process them with hcxpcapngtool.")
-    parser.add_argument('-i', '--interface', type=str, required=True, metavar='wlan0', help="Network interface to use for capturing (e.g., wlan0)")
-    parser.add_argument('-w', '--write', type=str, metavar='name.pcapng', default='capture.pcapng', help="Optional: Output file name (default: capture.pcapng)")
+    parser.add_argument('-i', '--interface', type=str, required=True, metavar='wlan0', help="Wireless interface to use (e.g., wlan0)")
+    parser.add_argument('-w', '--write', type=str, metavar='name.pcapng', default='capture.pcapng', help="Output .pcapng file (default: capture.pcapng)")
     args = parser.parse_args()
+
     check_sudo()
+
+    # Check and install required apt packages
     with open('requirements.txt') as f:
         packages = f.read().split()
 
-    subprocess.run(['sudo', 'apt', 'install', '-y', *packages], check=True)
+    missing = [pkg for pkg in packages if subprocess.run(
+        ['dpkg', '-s', pkg],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    ).returncode != 0]
+
+    if missing:
+        print(f'Installing missing packages: {", ".join(missing)}')
+        subprocess.run(['sudo', 'apt', 'install', '-y', *missing], check=True)
 
     file_name = args.write
-    
+
     if not file_name.endswith('.pcapng'):
-        print("Output file must have a \033[1;31m.pcapng\033[0m extension. Please provide a valid file name.")
+        print("Output file must have a \033[1;31m.pcapng\033[0m extension.")
         sys.exit(1)
+
     check_interface(args.interface)
-    tool = ['hcxdumptool', 'hcxpcapngtool']
+
+    # Tool check
     if check_tools():
         try:
-            subprocess.run(['sudo','systemctl','stop','NetworkManager.service'])
-            subprocess.run(['sudo','systemctl','stop','wpa_supplicant.service'])
-            if run_hcxdumptool(args.interface,file_name):
+            subprocess.run(['sudo', 'systemctl', 'stop', 'NetworkManager.service'])
+            subprocess.run(['sudo', 'systemctl', 'stop', 'wpa_supplicant.service'])
+
+            # Start capture
+            if run_hcxdumptool(args.interface, file_name):
                 monitor_file(file_name, 'hash.hc22000', 'SsidHash.txt')
         finally:
-            subprocess.run(['sudo','systemctl','start','NetworkManager.service'])
-            subprocess.run(['sudo','systemctl','start','wpa_supplicant.service'])
+            subprocess.run(['sudo', 'systemctl', 'start', 'NetworkManager.service'])
+            subprocess.run(['sudo', 'systemctl', 'start', 'wpa_supplicant.service'])
+
+            # Proceed only if hash file exists
+            if not os.path.isfile('hash.hc22000'):
+                print("\n\033[1;31mNo hash.hc22000 file found. Make sure the handshake capture was successful.\033[0m")
+                sys.exit(1)
+
+            # Ask to crack
+            userInput = input("\nDo you want to start cracking the hashes? (y/n): ").strip().lower()
+            if userInput != 'y':
+                print("Exiting program.")
+                sys.exit(1)
+            print("This will use 100% of your CPU or GPU for cracking.")
+            print("If you dont want 100% CPU or GPU usage \033[1;31mhashcat -h\033[0m for more options.")
+            userInput = input("\nContinue? (y/n): ").strip().lower()
+            if userInput != 'y':
+                print("Exiting program.")
+                sys.exit(1)
+            # Try finding rockyou.txt
+            print("SEARCHING FOR \033[1;31mrockyou.txt\033[0m wordlist...")
+            result = find_rockyou("/usr") or find_rockyou("/")
+
+            if result:
+                try:
+                    using_hashcat(result)
+                except subprocess.CalledProcessError:
+                    print("Hashcat failed. Check the format or contents of hash.hc22000.")
+                    sys.exit(1)
+            else:
+                # Ask to download rockyou.txt
+                userInput = input("\n\033[1;33mrockyou.txt not found. Do you want to download it using \033[1;31mwget\033[0m? (y/n): \033[0m").strip().lower()
+                if userInput == 'y':
+                    # Install wget if needed
+                    if subprocess.run(['dpkg', '-s', 'wget'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
+                        print("Installing wget...")
+                        subprocess.run(['sudo', 'apt', 'install', '-y', 'wget'], check=True)
+                    try:
+                        subprocess.run(['wget', 'https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt'], check=True)
+                        print("\n\033[1;32mrockyou.txt downloaded successfully.\033[0m")
+                        using_hashcat('rockyou.txt')
+                    except subprocess.CalledProcessError:
+                        print("\n\033[1;31mFailed to download rockyou.txt.\033[0m")
+                        sys.exit(1)
+                else:
+                    print("Exiting program.")
+                    sys.exit(0)
