@@ -3,6 +3,8 @@
 **hcxdupcap** is a Python-based, all-in-one tool that automates WPA/WPA2/PMKID capture, hash extraction, and optional cracking using [Hashcat](https://github.com/hashcat/hashcat). It combines the functionality of [`hcxdumptool`](https://github.com/ZerBea/hcxdumptool), [`hcxpcapngtool`](https://github.com/ZerBea/hcxtools), and `hashcat` into a single, streamlined workflow. 
 
 ---
+# Just run `sudo python3 hcxdupcap.py -i <your_interface>` 
+---
 ## 🔔 Notice
 
 This tool uses **dictionary-based cracking only**, using the popular `rockyou.txt` wordlist.  
@@ -34,17 +36,16 @@ Alternatively, you can manually clone and build from source:
 - [`hcxpcapngtool`](https://github.com/ZerBea/hcxtools)
 - [`hashcat`](https://github.com/hashcat/hashcat)
 
+If these tools are not installed, the script will attempt to install them:
 ---
-
 ## ✨ Features
 
 - 📡 Capture WPA/PMKID handshakes using `hcxdumptool`
-- 🔍 Real-time processing of `.pcapng` using `hcxpcapngtool`
-- 💥 Optional hash cracking using `hashcat`
+- 🔍 Auto-process `.pcapng` using `hcxpcapngtool` in real-time
 - 💾 Outputs:
-  - `hash.hc22000`: Hashcat-ready WPA/PMKID hash file
-  - `SsidHash.txt`: SSID-to-hash mapping
-- ⚙ Auto-detects and installs missing tools
+  - `hash.hc22000`: Raw WPA/PMKID hashes (Hashcat-ready format)
+  - `SsidHash.txt`: Annotated SSID-to-hash mapping
+- ⚙ Automatic interface validation and tool installation
 - 🧪 Built for red teamers, pentesters, and Wi-Fi security researchers
 
 ---
